@@ -1,0 +1,75 @@
+# 2. AUTOMATIONEN (Über den YAML-Editor der Automationen einfügen)
+
+# --- AUTOMATION 1: LADESTROM ANPASSEN ---
+alias: Wallbox Ladestrom automatisch setzen
+description: Berechnet den Ladestrom basierend auf PV-Überschuss und setzt ihn per Modbus.
+triggers:
+  - entity_id: sensor.wallbox_ladestrom_berechnet
+    trigger: state
+  - trigger: state
+    entity_id: input_boolean.schalter_manuelle_ladesteuerung
+    from: "on"
+    to: "off"
+  - trigger: state
+    entity_id: sensor.wallbox_esp32_modbus_ladestatus
+  - trigger: state
+    entity_id: switch.carport_wallbox_esp32_modbus_ladefreigabe
+    from: "off"
+    to: "on"
+conditions:
+  - condition: state
+    entity_id: input_boolean.schalter_manuelle_ladesteuerung
+    state: "off"
+  - condition: state
+    entity_id: switch.carport_wallbox_esp32_modbus_ladefreigabe
+    state: "on"
+actions:
+  - action: number.set_value
+    data:
+      value: "{{ (states('sensor.wallbox_ladestrom_berechnet') | float(6.0)) | round(1) }}"
+    target:
+      entity_id: number.wallbox_esp32_modbus_ladestrom_setzen
+mode: single
+
+
+# --- AUTOMATION 2: START / STOPP MIT WOLKENSCHUTZ ---
+alias: Wallbox Modbus Ladefreigabe automatisch steuern
+description: Schaltet die Ladefreigabe schonend per Modbus basierend auf dem PV-Überschuss.
+triggers:
+  - trigger: time_pattern
+    minutes: /1
+conditions:
+  - condition: state
+    entity_id: input_boolean.schalter_manuelle_ladesteuerung
+    state: "off"
+actions:
+  - choose:
+      # FALL 1: Genug Überschuss -> AN
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ states('sensor.solarnet_leistung_netzeinspeisung') | float(0) >= states('sensor.wallbox_minimale_ladeleistung') | float(4100) }}
+          - condition: state
+            entity_id: switch.carport_wallbox_esp32_modbus_ladefreigabe
+            state: "off"
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: switch.carport_wallbox_esp32_modbus_ladefreigabe
+
+      # FALL 2: Zu viel Netzbezug (Wolke) -> 3 Min warten, dann AUS
+      - conditions:
+          - condition: template
+            value_template: "{{ states('sensor.solarnet_leistung_vom_netz') | float(0) > 500 }}"
+          - condition: state
+            entity_id: switch.carport_wallbox_esp32_modbus_ladefreigabe
+            state: "on"
+        sequence:
+          - delay: 
+              minutes: 3
+          - condition: template
+            value_template: "{{ states('sensor.solarnet_leistung_vom_netz') | float(0) > 500 }}"
+          - action: switch.turn_off
+            target:
+              entity_id: switch.carport_wallbox_esp32_modbus_ladefreigabe
+mode: single
