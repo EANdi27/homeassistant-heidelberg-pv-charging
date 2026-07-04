@@ -1,0 +1,35 @@
+# 1. TEMPLATE SENSOREN (In die configuration.yaml einfügen)
+template:
+  - sensor:
+      - name: "Wallbox Ladephasen"
+        unique_id: wallbox_ladephasen
+        unit_of_measurement: "Ph"
+        state: >
+          {% set l1 = states('sensor.wallbox_esp32_modbus_strom_l1') | float(0) %}
+          {% set l2 = states('sensor.wallbox_esp32_modbus_strom_l2') | float(0) %}
+          {% set l3 = states('sensor.wallbox_esp32_modbus_strom_l3') | float(0) %}
+          {% set phase_count = [l1, l2, l3] | select('gt', 1.0) | list | length %}
+          {{ phase_count if phase_count > 0 else 3 }}
+
+  - sensor:
+      - name: "Wallbox Ladestrom berechnet"
+        unique_id: wallbox_ladestrom_berechnet
+        unit_of_measurement: "A"
+        state: >
+          {% set ueberschuss = states('sensor.solarnet_leistung_netzeinspeisung') | float(0) %}
+          {% set netzbezug = states('sensor.solarnet_leistung_netzbezug') | float(0) %}
+          {% set pv_batt_entl = states('sensor.solarnet_entladeleistung') | float(0) %}
+          {% set phasen = states('sensor.wallbox_ladephasen') | int(3) %}
+          {% set leistung_ist = states('sensor.wallbox_esp32_modbus_leistung_l1_l2_l3_in_kva') | float(0) %}
+          {% set rohwert = ((leistung_ist * 1000 * 0.99 + ueberschuss - netzbezug - pv_batt_entl) / 230 / phasen) %}
+          {{ [16.0, [6.0, rohwert] | max] | min | round(1) }}
+
+  - sensor:
+      - name: "Wallbox minimale Ladeleistung"
+        unique_id: wallbox_minimale_ladeleistung
+        unit_of_measurement: "W"
+        state: >
+          {% set phasen = states('sensor.wallbox_ladephasen') | int(3) %}
+          {{ (230 * 6 * phasen) | round(0) }}
+
+
