@@ -1,0 +1,321 @@
+globals:
+  - id: ladefreigabe_status
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
+
+esphome:
+  name: wallbox-esp32-modbus
+  friendly_name: Wallbox_ESP32_Modbus
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+         
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ".xxx..."
+
+ota:
+  - platform: esphome
+    password: "xxxxx"
+
+wifi:
+  ssid: !secret wifi_ssid # dein passwort aus den HA- Einstellungen
+  password: !secret wifi_password # dein passwort
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Wallbox-Esp32-Modbus"
+    password: "xxx aus der Installation mit ESP home"
+
+captive_portal:
+
+switch:
+  - platform: gpio
+    pin: GPIO21
+    name: "Wallbox AN-PF-Kontakt_ESP32"
+    id: PF_Kontakt_ESP32
+
+  - platform: template
+    name: "Ladefreigabe"
+    id: ladefreigabe
+    icon: "mdi:ev-station"
+    lambda: |-
+      return id(ladefreigabe_status);
+    turn_on_action:
+      - lambda: |-
+          id(ladefreigabe_status) = true;
+          std::vector<uint8_t> cmd = {0x01, 0x06, 0x01, 0x03, 0x00, 0x01};
+          auto command = esphome::modbus_controller::ModbusCommandItem::create_custom_command(WallboxESP_server, cmd);
+          WallboxESP_server->queue_command(command);
+    turn_off_action:
+      - lambda: |-
+          id(ladefreigabe_status) = false;
+          std::vector<uint8_t> cmd = {0x01, 0x06, 0x01, 0x03, 0x00, 0x00};
+          auto command = esphome::modbus_controller::ModbusCommandItem::create_custom_command(WallboxESP_server, cmd);
+          WallboxESP_server->queue_command(command);
+  
+uart:
+  id: mod_bus
+  tx_pin: GPIO16
+  rx_pin: GPIO17
+  baud_rate: 19200
+  stop_bits: 1
+  parity: EVEN
+
+modbus:
+  id: modbus_rtu_bus
+  uart_id: mod_bus
+  flow_control_pin: GPIO4 #steuert DE/RE des RS485 Adapters
+   
+
+modbus_controller:
+  - id: WallboxESP_server
+    modbus_id: modbus_rtu_bus
+    address: 1
+    update_interval: 5s
+    command_throttle: 1000ms
+
+
+
+ #Modbus Register Layouts Version auslesen
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Version
+    address: 4
+    register_type: read
+    value_type: U_WORD
+    name: "Modbus_Register_Layouts_Version"
+   
+# Auslesen Ladestatus
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Ladestatus
+    address: 5
+    register_type: read
+    value_type: U_WORD
+    name: "Ladestatus"
+
+ # Auslesen der Stromstärken   
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: current_L1
+    address: 6
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "A"
+    name: "Strom_L1"
+    filters: 
+      - multiply: 0.1
+    accuracy_decimals: 1
+        
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: current_L2
+    address: 7
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "A"
+    name: "Strom_L2"
+    filters: 
+      - multiply: 0.1
+    accuracy_decimals: 1
+        
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: current_L3
+    address: 8
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "A" 
+    name: "Strom_L3"
+    filters: 
+      - multiply: 0.1  
+    accuracy_decimals: 1
+
+ #Auslesen der PCB Temperatur
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: PCB_Temperatur
+    address: 9
+    register_type: read
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    filters: 
+      - multiply: 0.1
+    name: "PCB_Temperatur"
+
+# Auslesen der el. Spannungen
+  
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Voltage_L1
+    address: 10
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "V"
+    name: "Spannung_L1"
+
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Voltage_L2
+    address: 11
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "V"
+    name: "Spannung_L2"
+
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Voltage_L3
+    address: 12
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "V"
+    name: "Spannung_L3" 
+
+# auslesen des Zustandes PF- Kontakt
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Freigabe
+    address: 13
+    register_type: read 
+    value_type: U_WORD
+    unit_of_measurement: ""
+    name: "freigegeben_wenn_1"
+
+# Auslesen der el. Leistung
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: L1_L2_L3_Power
+    address: 14
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "kVA"
+    name: "Leistung_L1+L2+L3 in kVA" 
+    filters: 
+      - multiply: 0.001
+  
+ #Auslesen der Energiewerte seit Einschalten
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Energy_since_PowerON_HighByte
+    address: 15
+    register_count: 2
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "kWh"
+    name: "Energie seit Einschalten " 
+    filters: 
+      - multiply: 0.001
+
+  #- platform: modbus_controller
+   # modbus_controller_id: WallboxESP_server
+    #id: Energy_since_PowerON_LowByte
+    #address: 16
+    #register_type: read
+    #unit_of_measurement: "kWh"
+    #name: "Energie seit Einschalten LowByte" 
+    #filters: 
+     # - multiply: 0.001
+
+# Auslesen der Energiewerte seit Installation
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Energy_since_Installation_HighByte
+    address: 17
+    register_count: 2
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "kWh"
+    name: "Energie seit Installation in kWh" 
+    filters: 
+      - multiply: 0.001
+
+  #- platform: modbus_controller
+    #modbus_controller_id: WallboxESP_server
+    #id: Energy_since_Installation_LowByte
+    #address: 18
+    #register_type: read
+    #value_type: U_WORD
+    #unit_of_measurement: "kWh"
+   # name: "Energie seit Installation LowByte" 
+    #filters: 
+      #- multiply: 0.001
+
+ # Auslesen der max./min. Stromstärken
+
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Current_max
+    address: 100
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "A"
+    name: "maximaler_Strom_Hardware " 
+
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    id: Current_min
+    address: 101
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "A"
+    name: "Minimaler_Strom_hardware" 
+
+# Modbus_master watchdog timeout in ms, umgerechnet in s
+
+  #- platform: modbus_controller
+    #modbus_controller_id: WallboxESP_server
+    #id: Modbus_Master_Watchdog
+    #address: 257
+    #register_type: holding
+    #value_type: U_WORD
+    #unit_of_measurement: "s"
+    #name: "Watchdog_Timeout_in_s"
+    #filters: 
+    # - multiply: 0.001
+              
+
+ #✍️ Schreibbare Register
+number:
+  - platform: modbus_controller
+    modbus_controller_id: WallboxESP_server
+    name: "Ladestrom setzen"
+    id: strom_limit
+    address: 261
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: "A"
+   # INTERNE GRENZEN: Passend zu deinen HA-Werten (6.0 bis 16.0)
+    min_value: 6.0
+    max_value: 16.0
+    step: 0.1
+    # Wandelt den gelesenen Box-Wert (z.B. 160) für Home Assistant in 16.0 um
+    lambda: "return x / 10.0;"
+    # Wandelt den von HA gesendeten Wert (z.B. 11.5) für den Modbus in 115 um
+    write_lambda: |-
+      return (int)(x * 10.0);
+  
+# Das Intervall steht ganz links am Rand (Top-Level)
+interval:
+  - interval: 30s
+    then:
+      - lambda: |-
+          // Füttert den Watchdog materialschonend:
+          // Es simuliert eine manuelle Änderung im UI, nutzt aber die interne Warteschlange,
+          // anstatt den Modbus-Bus mit Gewalt zu blockieren.
+          if (id(strom_limit).has_state()) {
+            auto call = id(strom_limit).make_call();
+            call.set_value(id(strom_limit).state);
+            call.perform();
+          }
