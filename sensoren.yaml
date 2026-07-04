@@ -31,5 +31,6 @@ template:
         state: >
           {% set phasen = states('sensor.wallbox_ladephasen') | int(3) %}
           {{ (230 * 6 * phasen) | round(0) }}
+          
 
 
