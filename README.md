@@ -42,7 +42,7 @@ Home Assistant übernimmt die komplette Logik und Regelung basierend auf deiner 
 
 ❗ **SICHERHEITSHINWEIS:** Sorge für deine Sicherheit und schalte vor der Montage den Strom im Sicherungskasten komplett ab. Vor allem, wenn die Wallbox geöffnet ist!
 
-1. Flash den ESP32 mit der Datei `wallbox-esphome.yaml`. *Tipp: Nutze dafür die ESPHome-Dashboard oder die Desktop-Version, um spätere Updates bequem über WLAN (OTA) einzuspielen.*
+1. Flash den ESP32 mit der Datei `Funktionstest.yaml`. *Tipp: Nutze dafür die ESPHome-Dashboard oder die Desktop-Version, um spätere Updates bequem über WLAN (OTA) einzuspielen.*
 2. Trage deine WLAN-Daten in den Geheimnis-Sektor (`!secret`) ein.
 3. Schalte die Geräte ein. Sobald der ESP32 im Netzwerk sichtbar ist, zeigt das ESPHome-Protokoll (Logger) die ausgelesenen Register an.
 4. **Inbetriebnahme-Test**: Überprüfe, ob die Werte für Spannungen und Ladestatus im Log erscheinen. Versuche das Register 261 manuell über das UI zu beschreiben. Wenn sich die Stromstärke im Bereich von 6.0 bis 16.0 A ändern lässt, steht die Hardware-Verbindung erfolgreich!
