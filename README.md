@@ -46,5 +46,5 @@ Home Assistant übernimmt die komplette Logik und Regelung basierend auf deiner 
 2. Trage deine WLAN-Daten in den Geheimnis-Sektor (`!secret`) ein.
 3. Schalte die Geräte ein. Sobald der ESP32 im Netzwerk sichtbar ist, zeigt das ESPHome-Protokoll (Logger) die ausgelesenen Register an.
 4. **Inbetriebnahme-Test**: Überprüfe, ob die Werte für Spannungen und Ladestatus im Log erscheinen. Versuche das Register 261 manuell über das UI zu beschreiben. Wenn sich die Stromstärke im Bereich von 6.0 bis 16.0 A ändern lässt, steht die Hardware-Verbindung erfolgreich!
-5. Füge die Sensoren und Automationen aus der Datei `homeassistant-automations.yaml` in dein Home Assistant ein. Passe die PV-Sensoren an deine eigene PV-Anlage an (Tipp: Nutze eine KI wie ChatGPT oder Claude, um die Sensor-Namen schnell auf dein System umzuschreiben).
+5. Füge die Sensoren und Automationen aus der Datei `automations.yaml` in dein Home Assistant ein. Passe die PV-Sensoren an deine eigene PV-Anlage an (Tipp: Nutze eine KI wie ChatGPT oder Claude, um die Sensor-Namen schnell auf dein System umzuschreiben).
 
